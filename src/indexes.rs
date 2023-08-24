@@ -842,6 +842,24 @@ impl Index {
         self.add_or_replace_unchecked_payload(payload, "text/csv", primary_key)
             .await
     }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn add_documents_in_batches_csv<T: futures_io::AsyncRead + Send + Sync + 'static>(
+        &self,
+        documents: &[T],
+        batch_size: Option<usize>,
+        primary_key: Option<&str>,
+    ) -> Result<Vec<TaskInfo>, Error> {
+        let mut task = Vec::with_capacity(documents.len());
+        for document_batch in documents.chunks(batch_size.unwrap_or(1000)) {
+            task.push(
+                self.add_or_replace_unchecked_payload(document_batch, "text/csv", primary_key)
+                    .await?,
+            );
+        }
+        Ok(task)
+    }
+
     /// Add a raw json payload to meilisearch.
     ///
     /// It configures the correct content type for json data.
